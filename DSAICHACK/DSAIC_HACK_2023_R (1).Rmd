@@ -1,0 +1,549 @@
+---
+title: "DSAIC HACKACTHON 2023"
+author: "Ombati"
+date: "2023-11-18"
+output:
+  html_document: default
+  pdf_document: default
+---
+# DSAIC HACKACTHON 2023 (prepared by `dekutR club`)
+
+
+#1.load libraries
+```{r}
+library(tidymodels)
+library(reshape2)
+
+# Helper packages
+library(readr)       
+library(vip)         
+```
+
+
+#2.1 Import Data
+### train set
+```{r}
+library(readxl)
+
+#change according to your directory
+train <- read_csv("C:/Users/OMBATI/Desktop/DSAICHACK2023/train.csv")
+glimpse(train)
+```
+
+
+### test set
+```{r}
+test <- read_csv("C:/Users/OMBATI/Desktop/DSAICHACK2023/test.csv")
+glimpse(test)
+```
+
+
+
+
+
+# Data analysis of the data
+In Data Understanding, I will mainly;
+
+1.Format data properly
+2.Missing data
+3.Get an overview about the complete data
+
+
+# Checking the first 5 rows of our train
+```{r}
+library(gt)
+
+train %>% 
+  slice_head(n = 5) %>% 
+  gt() # print output using gt
+```
+
+# 1. Format data
+I take a look at the data structure and check whether all data formats are correct:
+
+* Numeric variables should be formatted as integers (int) or double precision floating point   numbers (dbl).
+
+* Categorical (nominal and ordinal) variables should usually be formatted as factors (fct) and not characters (chr). Especially, if they don’t have many levels.
+
+```{r}
+glimpse(train)
+```
+# names of column
+```{r}
+names_col <- as_tibble(names(train))
+names_col
+```
+
+# explore the data class structure visually
+
+```{r}
+library(visdat)
+
+vis_dat(train)
+```
+
+# Check the levels of levels of the variable:
+### country 
+```{r}
+train %>% 
+  count(country,
+        sort = TRUE)
+```
+### year
+```{r}
+train %>% 
+  count(year,
+        sort = TRUE)
+```
+### location_type 
+```{r}
+train %>% 
+  count(location_type,
+        sort = TRUE)
+```
+### cellphone_access
+```{r}
+train %>% 
+  count(cellphone_access,
+        sort = TRUE)
+```
+### household_size 
+```{r}
+train %>% 
+  count(household_size ,
+        sort = TRUE)
+```
+### age_of_respondent  
+```{r}
+train %>% 
+  count(age_of_respondent,
+        sort = TRUE)
+```
+### gender_of_respondent
+```{r}
+train %>% 
+  count(gender_of_respondent,
+        sort = TRUE)
+```
+### relationship_with_head
+```{r}
+train %>% 
+  count(relationship_with_head,
+        sort = TRUE)
+```
+
+### marital_status
+```{r}
+train %>% 
+  count(marital_status,
+        sort = TRUE)
+```
+### education_level
+```{r}
+train %>% 
+  count(education_level,
+        sort = TRUE)
+```
+
+### job_type 
+```{r}
+train %>% 
+  count(gender_of_respondent,
+        sort = TRUE)
+```
+
+
+#converting character variables to factors  
+```{r}
+# convert all remaining character variables to factors 
+train <- 
+  train %>% 
+  mutate(across(where(is.character), as.factor))
+```
+#
+```{r}
+glimpse(train)
+```
+
+# 2.Missing data
+# visualizing missing data
+```{r}
+vis_miss(train, sort_miss = TRUE)
+```
+# Viewing missing train 
+```{r}
+is.na(train) %>% colSums()
+```
+## datatype
+```{r}
+class(train)  
+```
+## number of rows and column
+```{r}
+dim(train)
+```
+
+
+# 3.Get an overview about the complete data
+```{r}
+skimr::skim(train)
+```
+## Bar chart of marital_status
+```{r}
+ggplot(train, aes(x = marital_status)) +
+  geom_bar(fill = "coral") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Distribution of Marital Status")
+```
+
+## Bar chart of education_level
+```{r}
+ggplot(train, aes(x = education_level)) +
+  geom_bar(fill = "lightcoral") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Distribution of Education Level")
+```
+
+## Boxplot of household_size
+```{r}
+ggplot(train, aes(y = household_size)) +
+  geom_boxplot(fill = "lightgreen") +
+  labs(title = "Distribution of Household Size")
+```
+
+## Bar chart of cellphone_access
+```{r}
+ggplot(train, aes(x = cellphone_access)) +
+  geom_bar(fill = "skyblue") +
+  labs(title = "Distribution of Cellphone Access")
+```
+
+## Bar chart of job_type
+```{r}
+ggplot(train, aes(x = job_type)) +
+  geom_bar(fill = "lightblue") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Distribution of Job Type")
+```
+
+## Correlation Heatmap
+```{r}
+correlation_matrix <- cor(select(train, c(household_size, year,age_of_respondent )))
+melted_correlation <- melt(correlation_matrix)
+
+ggplot(melted_correlation, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  labs(title = "Correlation Heatmap")
+```
+
+
+## Preparing dataset
+```{r}
+train <- 
+  train %>%
+  mutate(across(where(is.character), as.factor))
+
+
+dim(train)
+```
+## 
+```{r}
+glimpse(train)
+```
+##
+```{r}
+train %>% 
+  count(bank_account) %>% 
+  mutate(prop = n/sum(n))
+```
+
+## DATA SPLITTING & RESAMPLING
+```{r}
+set.seed(1273)
+
+splits      <- initial_split(train, strata = bank_account)
+
+train_other <- training(splits)
+train_test  <- testing(splits)
+
+# training set proportions by bank_account
+train_other %>% 
+  count(bank_account) %>% 
+  mutate(prop = n/sum(n))
+```
+
+### test set proportions by bank_account
+```{r}
+train_test  %>% 
+  count(bank_account) %>% 
+  mutate(prop = n/sum(n))
+```
+## Spliting the data into validation set
+```{r}
+set.seed(234)
+val_set <- validation_split(train_other, 
+                            strata = bank_account, 
+                            prop = 0.75)
+```
+
+## A FIRST MODEL: PENALIZED LOGISTIC REGRESSION
+### Build the model
+```{r}
+lr_mod <- 
+  logistic_reg(penalty = tune(), mixture = 1) %>% 
+  set_engine("glmnet")
+
+```
+
+### Create the recipe
+```{r}
+lr_recipe <- 
+  recipe(bank_account ~ ., data = train_other) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  step_zv(all_predictors()) %>% 
+  step_normalize(all_predictors())
+```
+
+### Create the workflow
+```{r}
+lr_workflow <- 
+  workflow() %>% 
+  add_model(lr_mod) %>% 
+  add_recipe(lr_recipe)
+```
+
+### Create the grid for tuning
+```{r}
+lr_reg_grid <- tibble(penalty = 10^seq(-4, -1, length.out = 30))
+
+lr_reg_grid %>% top_n(-5) # lowest penalty values
+```
+### highest penalty values
+```{r}
+lr_reg_grid %>% top_n(5)  
+```
+
+### Train and tune the model
+```{r}
+lr_res <- 
+  lr_workflow %>% 
+  tune_grid(val_set,
+            grid = lr_reg_grid,
+            control = control_grid(save_pred = TRUE),
+            metrics = metric_set(roc_auc))
+```
+
+
+### “best” value for this hyperparameter
+```{r}
+top_models <-
+  lr_res %>% 
+  show_best("roc_auc", n = 15) %>% 
+  arrange(penalty) 
+top_models
+```
+
+###  visualize the validation set ROC curve:
+```{r}
+lr_best <- 
+  lr_res %>% 
+  collect_metrics() %>% 
+  arrange(penalty) %>% 
+  slice(12)
+lr_best
+```
+##
+```{r}
+lr_auc <- 
+  lr_res %>% 
+  collect_predictions(parameters = lr_best) %>% 
+  roc_curve(bank_account, .pred_No) %>% 
+  mutate(model = "Logistic Regression")
+
+autoplot(lr_auc)
+```
+
+# A SECOND MODEL: TREE-BASED ENSEMBLE
+## Build the model and improve training time
+```{r}
+cores <- parallel::detectCores()
+cores
+```
+## rand_forest() model
+```{r}
+rf_mod <- 
+  rand_forest(mtry = tune(), min_n = tune(), trees = 1000) %>% 
+  set_engine("ranger", num.threads = cores) %>% 
+  set_mode("classification")
+```
+
+## Create the recipe 
+```{r}
+rf_recipe <- 
+  recipe(bank_account~ ., data = train_other) 
+```
+
+## workflow 
+```{r}
+rf_workflow <- 
+  workflow() %>% 
+  add_model(rf_mod) %>% 
+  add_recipe(rf_recipe)
+```
+
+## Train and tune the model
+```{r}
+rf_mod
+```
+
+##
+```{r}
+extract_parameter_set_dials(rf_mod)
+```
+The mtry hyperparameter sets the number of predictor variables that each node in the decision tree “sees” and can learn about, so it can range from 1 to the total number of features present; when mtry = all possible features, the model is the same as bagging decision trees. The min_n hyperparameter sets the minimum n to split at any node.
+
+
+## 25 candidate models:
+```{r}
+set.seed(367)
+rf_res <- 
+  rf_workflow %>% 
+  tune_grid(val_set,
+            grid = 25,
+            control = control_grid(save_pred = TRUE),
+            metrics = metric_set(roc_auc))
+```
+## our top 5 random forest models, out of the 25 candidates:
+```{r}
+rf_res %>% 
+  show_best(metric = "roc_auc")
+
+```
+### Plotting the results of the tuning process
+```{r}
+autoplot(rf_res)
+```
+
+## best model according to the ROC AUC metric. Our final tuning parameter values are:
+```{r}
+rf_best <- 
+  rf_res %>% 
+  select_best(metric = "roc_auc")
+rf_best
+
+```
+## How the models performed
+```{r}
+rf_res %>% 
+  collect_predictions()
+
+```
+
+```{r}
+rf_auc <- 
+  rf_res %>% 
+  collect_predictions(parameters = rf_best) %>% 
+  roc_curve(bank_account, .pred_No) %>% 
+  mutate(model = "Random Forest")
+
+rf_auc
+```
+
+## we can compare the validation set ROC curves for our top penalized logistic regression model and random forest model
+```{r}
+bind_rows(rf_auc, lr_auc) %>% 
+  ggplot(aes(x = 1 - specificity, y = sensitivity, col = model)) + 
+  geom_path(lwd = 1.5, alpha = 0.8) +
+  geom_abline(lty = 3) + 
+  coord_equal() + 
+  scale_color_viridis_d(option = "plasma", end = .6)
+```
+
+## THE LAST FIT
+```{r}
+# the last model
+last_rf_mod <- 
+  rand_forest(mtry = 8, min_n = 7, trees = 1000) %>% 
+  set_engine("ranger", num.threads = cores, importance = "impurity") %>% 
+  set_mode("classification")
+
+# the last workflow
+last_rf_workflow <- 
+  rf_workflow %>% 
+  update_model(last_rf_mod)
+
+# the last fit
+set.seed(345)
+last_rf_fit <- 
+  last_rf_workflow %>% 
+  last_fit(splits)
+
+last_rf_fit
+```
+
+
+## How it performed
+```{r}
+last_rf_fit %>% 
+  collect_metrics()
+```
+
+## Variable importance
+```{r}
+last_rf_fit %>% 
+  extract_fit_parsnip() %>% 
+  vip(num_features = 20)
+```
+## roc_curve of the final model 
+```{r}
+last_rf_fit %>% 
+  collect_predictions() %>% 
+  roc_curve(bank_account, .pred_No) %>% 
+  autoplot()
+```
+
+# Fiiting our model on the test data
+```{r}
+# Extract the fitted model from the last_rf_fit object
+last_rf_model <- extract_fit_parsnip(last_rf_fit)
+
+# Make predictions on the test set using the extracted model
+test_predictions <- predict(last_rf_model, new_data = test)
+
+# Extract "uniqueid" and ".pred_class" columns
+result_df <- data.frame(uniqueid = test$uniqueid, predicted_class = test_predictions$.pred_class)
+
+# making a copy
+sub <- result_df
+# View the resulting data frame
+head(result_df)
+```
+
+## Preparing the prediction for submission
+```{r}
+# Convert the 'predicted_class' column to 'bank_account' with 1 for 'Yes' and 0 for 'No'
+result_df$bank_account <- as.numeric(as.character(result_df$predicted_class) == "Yes")
+
+# Rename the 'predicted_class' column to 'bank_account'
+names(result_df)[names(result_df) == "predicted_class"] <- "bank_account"
+
+# Print the updated DataFrame
+print(result_df)
+```
+##
+```{r}
+result_df <- subset(result_df, select = -bank_account)
+
+# Print the modified DataFrame
+print(result_df)
+```
+## Converting our dataframe to csv file and submitting
+```{r}
+directory <- "C:/Users/OMBATI/Desktop/DSAICHACK2023"  
+
+# Save the dataframe to a CSV file
+## Change the directory accordingly
+write.csv(result_df, file.path(directory, "submission_one.csv"), row.names = FALSE)
+```
+
